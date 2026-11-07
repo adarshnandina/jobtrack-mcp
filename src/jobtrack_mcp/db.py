@@ -185,23 +185,33 @@ class ApplicationRepository:
             return self._row_to_application(row)
 
 
-    def list_applications(self, status: ApplicationStatus | None = None) -> list[Application]:
+    def list_all(
+            self, 
+            status: ApplicationStatus | None = None,
+            limit: int = 20,
+            ) -> list[Application]:
         """Retrieve all applications, optionally filtered by status.
 
         Args:
             status: Status used to filter applications.
+            limit: Maximum number of records to return.
 
         Returns:
             Applications ordered by creation time, newest first.
         """
 
+        if not 1 <= limit <= 100:
+            raise ValueError("Limit must be between 1 and 100.")
+    
         with self._connection() as conn:
             if status is None:
                 rows = conn.execute(
                     """
                     SELECT * FROM applications
                     ORDER BY created_at DESC, id DESC
-                    """
+                    LIMIT ?
+                    """,
+                    (limit,),
                 ).fetchall()
 
             else:
@@ -212,8 +222,9 @@ class ApplicationRepository:
                     SELECT * FROM applications
                     WHERE status = ?
                     ORDER BY created_at DESC, id DESC
+                    LIMIT ?
                     """,
-                    (status.value,),
+                    (status.value, limit,),
                 ).fetchall()
 
             return [self._row_to_application(row) for row in rows]
